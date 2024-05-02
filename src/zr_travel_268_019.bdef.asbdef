@@ -1,0 +1,85 @@
+managed;// implementation in class zbp_r_travel_268_019 unique;
+//strict ( 2 );
+
+define behavior for ZR_TRAVEL_268_019 alias Travel //alias <alias_name>
+implementation in class zbp_i_travel_log_268_19 unique
+persistent table ztravel_268_19
+lock master
+authorization master ( instance )
+etag master last_changed_at
+{
+  //Campos solo lectura, no pueden ser modificados
+  field ( readonly ) last_changed_at, last_changed_by, created_at, created_by;
+  //Campos obligatorios
+  field ( mandatory : create ) travel_id, agency_id, overall_status, booking_fee, currency_code;
+  field ( features : instance ) travel_id, overall_status;
+  create;
+  update;
+  delete;
+
+  //Validaciones
+  validation validateCustomer on save { create; field customer_id;}
+  validation validateDates on save {  create; field begin_date, end_date;}
+  validation validateStatus on save { create; field overall_status;}
+
+  //acciones
+  action (features : instance) acceptTravel result[1] $self;
+  action (features : instance) rejectTravel result[1] $self;
+  action createTravelByTemplate result[1] $self;
+
+  association _Booking { create; }
+
+
+  //mapping
+  mapping for ztravel_268_19 corresponding;
+}
+
+define behavior for ZR_BOOKING_268_019 alias Booking//alias <alias_name>
+implementation in class zbp_i_booking_log_268_19 unique
+persistent table zbooking_log_19
+lock dependent by _Travel
+//lock dependent ( TravelId = travel_id )
+authorization dependent by _Travel
+//authorization dependent ( TravelId = travel_id )
+etag master LastChangeAt
+{
+  field ( readonly ) TravelId;
+  //field ( readonly ) BookingId;
+  field ( mandatory : create ) BookingId, CarrierId, ConnectionId, FlightDate, BookingStatus;
+  update;
+  delete;
+  //Validaciones
+  validation validateStatus on save { create; field BookingStatus;}
+  //determinaciones
+  determination calculateTotalFlightPrice on modify { field FlightPrice; }
+  determination calculateTotalSupplimPrice on modify { field CurrencyCode; }
+
+  association _Travel{}
+  association _BookingSupplement { create; }
+
+  //mapping
+  mapping for zbooking_log_19 corresponding;
+}
+
+define behavior for ZR_BOOKINGSUPPL_268_019 alias Supplement//alias <alias_name>
+implementation in class zbp_i_bookingsuppl_log_268_19 unique
+//persistent table <???>
+with unmanaged save
+lock dependent by _Travel
+//lock dependent ( travel_id = travel_id ) //Saca error de que la sentencia es obsoleta
+authorization dependent by _Travel
+//authorization dependent ( travel_id = travel_id ) //Saca error de que la sentencia es obsoleta
+etag master last_changed_at
+{
+  field ( readonly ) travel_id, booking_id, booking_supplement_id;
+  field ( mandatory : create ) supplement_id, price;
+  update;
+  delete;
+  association _Travel{}
+  association _Booking;
+  //mapping
+  mapping for zlog_log_019 corresponding;
+  //determinaciones
+  determination calculateTotalSupplimPrice on modify { field price, CurrencyCode; }
+
+}
